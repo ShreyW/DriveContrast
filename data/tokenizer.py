@@ -14,23 +14,39 @@ class ActionTokenizer:
         self.centers = None
 
     def fit(self, data_dir, subset="Unconventional Dynamic Obstacles", split="train", sample_ratio=0.1):
-        """
-        Extracts random action samples from Impromptu VLA dataset and fits K-Means.
-        """
-        print(f"Finding action logs in {os.path.join(data_dir, subset, split)} for K-Disk clustering...")
-        action_files = sorted(glob.glob(os.path.join(data_dir, subset, split, "*.npy")))
+        print(f"Finding tar files in {os.path.join(data_dir)} for K-Disk clustering...")
+        import tarfile
+        import re
         
+        tar_files = sorted(glob.glob(os.path.join(data_dir, "**", "*.tar"), recursive=True))
+            
+        if not tar_files:
+            raise ValueError(f"No tar files found in {data_dir}. Cannot fit tokenizer.")
+            
         all_actions = []
-        # Subsample files to speed up clustering
-        num_files_to_sample = max(1, int(len(action_files) * sample_ratio))
-        sampled_files = np.random.choice(action_files, num_files_to_sample, replace=False)
+        # Subsample tar files or process all
+        num_files_to_sample = max(1, int(len(tar_files) * sample_ratio))
+        sampled_files = np.random.choice(tar_files, num_files_to_sample, replace=False)
         
         for file in sampled_files:
-            actions = np.load(file) # Shape: (time_horizon, action_dim)
-            all_actions.append(actions)
-            
+            try:
+                with tarfile.open(file, 'r') as tar:
+                    for member in tar.getmembers():
+                        if member.name.endswith('.q7_answer.txt'):
+                            f = tar.extractfile(member)
+                            if f:
+                                content = f.read().decode('utf-8')
+                                # Extract floats within brackets like [5.50, -0.01]
+                                matches = re.findall(r'\[\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]', content)
+                                if matches:
+                                    # Convert to float and shape (time_horizon, 2)
+                                    trajectory = np.array([[float(m[0]), float(m[1])] for m in matches])
+                                    all_actions.append(trajectory)
+            except Exception as e:
+                print(f"Error reading {file}: {e}")
+                
         if not all_actions:
-            raise ValueError(f"No action files found in {os.path.join(data_dir, subset, split)}. Cannot fit tokenizer.")
+            raise ValueError(f"No valid trajectory actions found in the parsed tar files.")
             
         flattened_actions = np.concatenate(all_actions, axis=0)
         print(f"Fitting MiniBatchKMeans over {len(flattened_actions)} continuous action steps for {self.vocab_size} centers...")
