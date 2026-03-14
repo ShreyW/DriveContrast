@@ -1,4 +1,4 @@
-# AutoVLA 4D (Impromptu VLA)
+# AutoVLA 4D
 
 This repository contains the refactored framework to implement a 4D (spatiotemporal) visual backbone for the AutoVLA model.
 
