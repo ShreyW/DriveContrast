@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import argparse
 from peft import LoraConfig, get_peft_model
 from transformers import Dinov2Model # Dummy required for older HF environments
 
@@ -35,16 +36,25 @@ def configure_qlora(model):
     return model
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset_dir", type=str, default="data/impromptu", help="Path to dataset directory")
+    parser.add_argument("--split", type=str, default="train", help="Dataset split (e.g. train, val)")
+    parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
+    parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
+    parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
+    parser.add_argument("--action_centers", type=str, default="data/action_centers.pt", help="Path to Action Tokenizer centers")
+    args = parser.parse_args()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # 1. Initialize Action Tokenizer
     tokenizer = ActionTokenizer(vocab_size=2048)
-    tokenizer.load("data/action_centers.pt") # Must be generated prior
+    tokenizer.load(args.action_centers) # Must be generated prior
 
     # 2. Init Dataset
-    dataset = ImpromptuVLADataset(data_dir="data/impromptu", split="train")
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True, drop_last=True)
+    dataset = ImpromptuVLADataset(data_dir=args.dataset_dir, split=args.split)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
     # 3. Model init
     model = AutoVLA4D(use_vanilla_backbone=False)
@@ -54,18 +64,16 @@ def main():
     # 4. Training configuration 
     optimizer = torch.optim.AdamW(
         filter(lambda p: p.requires_grad, model.parameters()), 
-        lr=1e-5, 
+        lr=args.lr, 
         weight_decay=0.01
     )
     criterion = nn.CrossEntropyLoss()
     
-    EPOCHS = 3
-    
     print("\nStarting Training (SFT)...")
-    for epoch in range(EPOCHS):
+    for epoch in range(args.epochs):
         model.train()
         total_loss = 0
-        pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{EPOCHS}")
+        pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{args.epochs}")
         
         for batch in pbar:
             optimizer.zero_grad()

@@ -18,7 +18,7 @@ python data/tokenizer.py --dataset_dir /path/to/impromptu
 
 3. Train the model using Supervised Fine Tuning (SFT). The provided training script balances cross-entropy action-prediction loss over a predefined horizon using QLoRA optimization:
 ```bash
-python scripts/train.py --batch_size 4 --lr 1e-5
+python scripts/train.py --dataset_dir data/waymo_subset --split train --batch_size 4 --lr 1e-5 --epochs 3
 ```
 
 4. Evaluate performance via PDMS tracking in `navsim`:
