@@ -37,7 +37,8 @@ def configure_qlora(model):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset_dir", type=str, default="data/impromptu", help="Path to dataset directory")
+    parser.add_argument("--dataset_dir", type=str, default="data/waymo_subset", help="Path to dataset directory")
+    parser.add_argument("--subset", type=str, default="Unconventional Dynamic Obstacles", help="Subset name under dataset_dir (must match extract script)")
     parser.add_argument("--split", type=str, default="train", help="Dataset split (e.g. train, val)")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
@@ -53,7 +54,7 @@ def main():
     tokenizer.load(args.action_centers) # Must be generated prior
 
     # 2. Init Dataset
-    dataset = ImpromptuVLADataset(data_dir=args.dataset_dir, split=args.split)
+    dataset = ImpromptuVLADataset(data_dir=args.dataset_dir, subset=args.subset, split=args.split)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
     # 3. Model init
