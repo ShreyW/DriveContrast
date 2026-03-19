@@ -44,8 +44,11 @@ def score_comfort(traj):
         return 1.0
     vel  = np.diff(traj[:, :2], axis=0)
     acc  = np.diff(vel, axis=0)
-    jerk = np.linalg.norm(acc, axis=1).mean()
-    return float(np.clip(1.0 - jerk / 10.0, 0.0, 1.0))
+    jerk = np.diff(acc, axis=0)
+    jerk_mag = np.linalg.norm(jerk, axis=1)
+    J = jerk_mag.mean()
+
+    return float(np.clip(1.0 - J / 10.0, 0.0, 1.0))
 
 
 def score_ep(pred_traj, gt_traj):
